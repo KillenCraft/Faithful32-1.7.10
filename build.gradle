@@ -5,13 +5,8 @@ plugins {
 defaultTasks 'resourcepack'
 buildDir = 'out'
 
-task resourcepack {
-    group = 'Build'
-    description = "Builds the resource pack."
-    dependsOn 'packed_pack'
-}
-
-tasks.assemble.dependsOn 'resourcepack'
+// Load the archive file name from the properties file
+def packFileName = project.findProperty('packFileName') ?: 'resourcepack.zip'
 
 // Task to sync files while maintaining folder structure and only copying changed files
 task unpacked(type: Sync) {
@@ -25,21 +20,21 @@ task unpacked(type: Sync) {
         into 'Reika'
     }
     from ('pack.png', 'pack.mcmeta')
-    into "${buildDir}/unpacked"
-    exclude '**/*.md', '**/*.psd', '**/desktop.ini', '**/Thumbs.db'
 
-    // Sync-specific settings
-    preserve {
-        include '**/*'
-    }
+    into "${buildDir}/unpacked"
+
+    exclude '**/*.md', '**/*.psd', '**/desktop.ini', '**/Thumbs.db'
 }
 
 // Task to create a ZIP file from the unpacked files
-task packed_pack(type: Zip) {
+task resourcepack(type: Zip) {
     includeEmptyDirs = false
     group = 'Build'
     description = "Builds the resource pack."
-    archiveFileName.set("Faithful32-Modded-1.7.x.zip")
+    archiveFileName.set(packFileName)
 
     from tasks.unpacked
+    dependsOn tasks.unpacked
 }
+
+tasks.assemble.dependsOn 'resourcepack'
