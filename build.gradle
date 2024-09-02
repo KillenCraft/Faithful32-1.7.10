@@ -2,16 +2,20 @@ plugins {
     id 'base'
 }
 
-defaultTasks 'resourcepack'
-buildDir = 'out'
+defaultTasks 'assemble'
+buildDir = layout.projectDir.dir('out')
 
 // Load the archive file name from the properties file
 def packFileName = project.findProperty('packFileName') ?: 'resourcepack.zip'
+def looseDir = "${buildDir}/${project.findProperty('looseDir') ?: 'loose'}"
+def excludePatterns = project.findProperty('excludePatterns')?.split(',') ?: []
 
 // Task to sync files while maintaining folder structure and only copying changed files
-task unpacked(type: Sync) {
+tasks.register('syncLooseFiles', Sync) {
     includeEmptyDirs = false
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    group = 'Build'
+    description = "Gathers the resource pack's loose files."
 
     from('assets') {
         into 'assets'
@@ -21,20 +25,25 @@ task unpacked(type: Sync) {
     }
     from ('pack.png', 'pack.mcmeta')
 
-    into "${buildDir}/unpacked"
+    into looseDir
 
-    exclude '**/*.md', '**/*.psd', '**/desktop.ini', '**/Thumbs.db'
+    // Exclude unnecessary files
+    excludePatterns.each { pattern ->
+        exclude pattern.trim()
+    }
 }
 
 // Task to create a ZIP file from the unpacked files
-task resourcepack(type: Zip) {
+tasks.register('zipPack', Zip) {
     includeEmptyDirs = false
     group = 'Build'
     description = "Builds the resource pack."
-    archiveFileName.set(packFileName)
+    destinationDirectory.set(buildDir)
 
-    from tasks.unpacked
-    dependsOn tasks.unpacked
+    from(tasks.named('syncLooseFiles'))
+    dependsOn(tasks.named('syncLooseFiles'))
 }
 
-tasks.assemble.dependsOn 'resourcepack'
+tasks.named('assemble') {
+    dependsOn(tasks.named('zipPack'))
+}
